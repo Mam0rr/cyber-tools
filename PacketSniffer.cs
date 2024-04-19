@@ -46,7 +46,7 @@ class PacketSniffer
                 }
             default:
                 {
-                    Console.WriteLine("Unknown input");
+                    Console.WriteLine($"Unknown filter: {input}");
                     return null;
                 }
         }
@@ -66,7 +66,7 @@ class PacketSniffer
             case "dstport":
                 return $"dst port {input2.Trim()}";
             default:
-                Console.WriteLine("Unknown input");
+                Console.WriteLine($"Unknown filter: {input}");
                 return null;
         }
     }
@@ -165,14 +165,30 @@ class PacketSniffer
                     }
                 case "help":
                     {
-                        Console.WriteLine("\nAvailable Commands:");
-                        Console.WriteLine("-----------------------------------------------------------------------------------");
-                        Console.WriteLine("run             Starts capturing packets from a chosen network interface.\n");
-                        Console.WriteLine("exit            Exits the program.\n");
-                        Console.WriteLine("help            Displays a list of available commands and their usage.");
-                        Console.WriteLine("-----------------------------------------------------------------------------------\n");
+                        Console.WriteLine(@"
+Available Commands:
+-----------------------------------------------------------------------------------
+run             Starts capturing packets from a chosen network interface.
+                Usage: run [filter_type] [filter_value]
+                Supported filter types:
+                    - tcp
+                    - udp
+                    - icmp
+                    - srcip [source_ip]
+                    - dstip [destination_ip]
+                    - srcport [source_port]
+                    - dstport [destination_port]
+                Example: 
+                    - run tcp
+                    - run srcip 192.168.1.10
+-----------------------------------------------------------------------------------
+exit            Exits the program.
+help            Displays a list of available commands and their usage.
+-----------------------------------------------------------------------------------
+");
                         break;
                     }
+
 
             }
 
