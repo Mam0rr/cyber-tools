@@ -1,9 +1,5 @@
 using PacketDotNet;
 using SharpPcap;
-using SharpPcap.LibPcap;
-using System.IO;
-using System.Net;
-using static System.Net.WebRequestMethods;
 
 class PacketSniffer
 {
