@@ -135,9 +135,4 @@ class PacketSniffer
 
         }
     }
-
-    static void ProcessPacket(byte[] buffer, int length)
-    {
-        Console.WriteLine("Packet Captured: " + BitConverter.ToString(buffer, 0, length));
-    }
 }
