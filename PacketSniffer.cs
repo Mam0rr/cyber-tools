@@ -1,11 +1,8 @@
 using PacketDotNet;
 using SharpPcap;
-using PcapDotNet;
-using System.Net;
 using PcapDotNet.Packets;
 using PcapDotNet.Packets.Ethernet;
 using PcapDotNet.Packets.IpV4;
-using PcapDotNet.Base;
 using PcapDotNet.Packets.Transport;
 
 class PacketSniffer
