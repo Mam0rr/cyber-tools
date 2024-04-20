@@ -1,5 +1,12 @@
 using PacketDotNet;
 using SharpPcap;
+using PcapDotNet;
+using System.Net;
+using PcapDotNet.Packets;
+using PcapDotNet.Packets.Ethernet;
+using PcapDotNet.Packets.IpV4;
+using PcapDotNet.Base;
+using PcapDotNet.Packets.Transport;
 
 class PacketSniffer
 {
@@ -7,7 +14,7 @@ class PacketSniffer
     {
         var time = e.Header.Timeval.Date;
         var rawPacket = e.GetPacket();
-        var packet = Packet.ParsePacket(rawPacket.LinkLayerType, rawPacket.Data);
+        var packet = PacketDotNet.Packet.ParsePacket(rawPacket.LinkLayerType, rawPacket.Data);
 
         if (packet is EthernetPacket ethernetPacket)
         {
@@ -149,9 +156,85 @@ class PacketSniffer
 
                         Console.WriteLine("-- Capture stopped.");
 
-                        Console.WriteLine($"-- Packets Received: {device.Statistics.ReceivedPackets}, Dopped Packets: {device.Statistics.DroppedPackets}, Interface Dropped Packets: {device.Statistics.InterfaceDroppedPackets}");
+                        Console.WriteLine($"-- Packets Received: {device.Statistics.ReceivedPackets}, Dropped Packets: {device.Statistics.DroppedPackets}, Interface Dropped Packets: {device.Statistics.InterfaceDroppedPackets}");
 
                         break;
+                    }//This section is a work in progress so it lacks proper functionality
+                case "send":
+                    {
+                        Console.WriteLine("Scanning for available devices...\n");
+
+                        var devices = CaptureDeviceList.Instance;
+
+                        if (devices.Count < 1)
+                        {
+                            Console.WriteLine("No devices were found on this machine");
+                            return;
+                        }
+
+                        Console.WriteLine("\nThe following devices are available on this machine:");
+                        Console.WriteLine("----------------------------------------------------\n");
+
+                        int i = 0;
+
+                        foreach (var dev in devices)
+                        {
+                            Console.WriteLine("{0} Name: {1}   MAC: {2}    Description: {3}", i, dev.Name, dev.MacAddress, dev.Description);
+                            i++;
+                        }
+
+                        Console.WriteLine();
+
+                        Console.WriteLine();
+                        Console.Write("-- Please choose a device to send a packet on: ");
+                        i = int.Parse(Console.ReadLine());
+
+                        using var device = devices[i];
+
+                        device.Open();
+
+                        PcapDotNet.Packets.Packet packet =
+    PacketBuilder.Build(DateTime.Now,
+                        new EthernetLayer
+                        {
+                            Source = new MacAddress("11:22:33:44:55:66"),
+                            Destination = new MacAddress("11:22:33:44:55:67"),
+                        },
+                        new IpV4Layer
+                        {
+                            Source = new IpV4Address("1.2.3.4"),
+                            Ttl = 64,
+                            Identification = 100,
+                        },
+                        new TcpLayer
+                        {
+                            SourcePort = 1234,
+                            DestinationPort = 5678,
+                            Checksum = null, 
+                            SequenceNumber = 1000,
+                            AcknowledgmentNumber = 2000,
+                            ControlBits = TcpControlBits.None,
+                        },
+                        new PayloadLayer
+                        {
+                            Data = new Datagram(new byte[] { 1, 2, 3, 4 })
+                        });
+
+                        try
+                        {
+                            byte[] rawData = packet.ToArray();
+                            device.SendPacket(rawData);
+                            Console.WriteLine("-- Packet sent successfuly.");
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("-- " + e.Message);
+                        }
+
+                        Console.Write("Hit 'Enter' to exit...");
+                        Console.ReadLine();
+
+                    break;
                     }
                 case "exit":
                     {
@@ -182,6 +265,14 @@ exit            Exits the program.
 help            Displays a list of available commands and their usage.
 -----------------------------------------------------------------------------------
 ");
+                        break;
+                    }
+                default:
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"Unknown command: {cmd}");
+                        Console.ForegroundColor = ConsoleColor.White;
+
                         break;
                     }
 
