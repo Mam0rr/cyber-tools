@@ -114,8 +114,17 @@ class PacketSniffer
 
                         Console.WriteLine();
                         Console.Write("-- Please choose a device to capture: ");
+
+                    inputDeviceRun:
                         i = int.Parse(Console.ReadLine());
 
+                        if (i > devices.Count - 1)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("Error: Invalid device number.\n");
+                            Console.ForegroundColor = ConsoleColor.White;
+                            goto inputDeviceRun;
+                        }
                         using var device = devices[i];
 
                         device.OnPacketArrival +=
@@ -172,6 +181,7 @@ class PacketSniffer
                         Console.WriteLine("\nThe following devices are available on this machine:");
                         Console.WriteLine("----------------------------------------------------\n");
 
+
                         int i = 0;
 
                         foreach (var dev in devices)
@@ -184,7 +194,16 @@ class PacketSniffer
 
                         Console.WriteLine();
                         Console.Write("-- Please choose a device to send a packet on: ");
+                    inputDeviceSend:
                         i = int.Parse(Console.ReadLine());
+
+                        if (i > devices.Count-1)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("Error: Invalid device number.\n");
+                            Console.ForegroundColor = ConsoleColor.White;
+                            goto inputDeviceSend;
+                        }
 
                         using var device = devices[i];
 
