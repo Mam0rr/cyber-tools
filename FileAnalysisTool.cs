@@ -5,6 +5,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
 
 namespace FileAnalysisTool
@@ -22,7 +23,7 @@ namespace FileAnalysisTool
                 string input = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(input)) continue;
 
-                string[] commandParts = input.Split(' ');
+                string[] commandParts = SplitCommand(input);
                 string command = commandParts[0].ToLower();
 
                 switch (command)
@@ -30,59 +31,37 @@ namespace FileAnalysisTool
                     case "help":
                         ShowHelp();
                         break;
-
                     case "entropy":
                         ExecuteCommandWithFilePath(commandParts, CalculateEntropy);
                         break;
-
                     case "metadata":
                         ExecuteCommandWithFilePath(commandParts, ExtractMetadata);
                         break;
-
                     case "strings":
-                        if (commandParts.Length >= 2)
-                        {
-                            int minLength = commandParts.Length >= 3 ? int.Parse(commandParts[2]) : 4;
-                            ExtractStrings(commandParts[1], minLength);
-                        }
-                        else
-                        {
-                            Console.WriteLine("Error: No file path provided for string extraction.");
-                        }
+                        ExecuteStringExtraction(commandParts);
                         break;
-
                     case "comparebytes":
-                        ExecuteCommandWithTwoFilePaths(commandParts, CompareBytes);
+                        ExecuteCommandWithTwoVariables(commandParts, CompareBytes);
                         break;
-
                     case "comparetext":
-                        ExecuteCommandWithTwoFilePaths(commandParts, CompareText);
-                        break;
-
                     case "comparelines":
-                        ExecuteCommandWithTwoFilePaths(commandParts, CompareLines);
+                        ExecuteCommandWithTwoVariables(commandParts, CompareText);
                         break;
-
                     case "comparelinescontext":
-                        if (commandParts.Length >= 3)
-                        {
-                            int contextLines = commandParts.Length >= 4 ? int.Parse(commandParts[3]) : 2;
-                            CompareLinesWithContext(commandParts[1], commandParts[2], contextLines);
-                        }
-                        else
-                        {
-                            Console.WriteLine("Error: Two file paths and context lines count are required.");
-                        }
+                        ExecuteContextLineComparison(commandParts);
                         break;
-
                     case "comparebyteshexdump":
-                        ExecuteCommandWithTwoFilePaths(commandParts, CompareBytesHexDump);
+                        ExecuteCommandWithTwoVariables(commandParts, CompareBytesHexDump);
                         break;
-
+                    case "searchstring":
+                        ExecuteCommandWithTwoVariables(commandParts, StringSearch);
+                        break;
+                    case "searchstringnobreak":
+                        ExecuteCommandWithTwoVariables(commandParts, StringSearches);
+                        break;
                     case "exit":
                         Console.WriteLine("Exiting...");
                         return;
-
                     default:
                         Console.WriteLine("Error: Unknown command. Type 'help' for a list of available commands.");
                         break;
@@ -97,11 +76,62 @@ namespace FileAnalysisTool
             Console.WriteLine("  metadata <filePath>                    - Extract and display metadata from the specified file.");
             Console.WriteLine("  strings <filePath> [minLength]         - Extract and display printable strings from the specified file.");
             Console.WriteLine("  comparebytes <filePath1> <filePath2>  - Compare two files byte-by-byte.");
-            Console.WriteLine("  comparetext <filePath1> <filePath2>   - Compare two text files line-by-line.");
+            Console.WriteLine("  comparetext <filePath1> <filePath2>   - Compare two text files character-by-character.");
             Console.WriteLine("  comparelines <filePath1> <filePath2>  - Compare two text files line-by-line.");
             Console.WriteLine("  comparelinescontext <filePath1> <filePath2> [contextLines] - Compare two text files with context.");
             Console.WriteLine("  comparebyteshexdump <filePath1> <filePath2> - Compare two files byte-by-byte in hex dump format.");
+            Console.WriteLine("  searchstring <filePath> <searchString> - Search for a specific string in the specified file.");
+            Console.WriteLine("  searchstringnobreak <filePath> <searchString> - Search for a specific string in the specified file without breaking.");
             Console.WriteLine("  exit                                   - Exit the application.");
+        }
+
+
+        public static string[] SplitCommand(string input)
+        {
+            var result = new List<string>();
+            bool inQuotes = false;
+            string currentTerm = "";
+
+            for (int i = 0; i < input.Length; i++)
+            {
+                char currentChar = input[i];
+
+                // Check for quotes
+                if (currentChar == '"')
+                {
+                    inQuotes = !inQuotes; // Toggle inQuotes
+                    // If we are closing a quote, don't add the quote to the term
+                    if (currentTerm.Length > 0 && !inQuotes)
+                    {
+                        result.Add(currentTerm);
+                        currentTerm = ""; // Reset current term
+                    }
+                    continue;
+                }
+
+                // If we are not inside quotes and hit a space, we should finalize the term
+                if (char.IsWhiteSpace(currentChar) && !inQuotes)
+                {
+                    if (currentTerm.Length > 0)
+                    {
+                        result.Add(currentTerm);
+                        currentTerm = ""; // Reset current term
+                    }
+                }
+                else
+                {
+                    // Append the current character to the current term
+                    currentTerm += currentChar;
+                }
+            }
+
+            // Add any remaining term at the end
+            if (currentTerm.Length > 0)
+            {
+                result.Add(currentTerm);
+            }
+
+            return result.ToArray();
         }
 
         static void ExecuteCommandWithFilePath(string[] commandParts, Action<string> command)
@@ -114,7 +144,7 @@ namespace FileAnalysisTool
             command(commandParts[1]);
         }
 
-        static void ExecuteCommandWithTwoFilePaths(string[] commandParts, Action<string, string> command)
+        static void ExecuteCommandWithTwoVariables(string[] commandParts, Action<string, string> command)
         {
             if (commandParts.Length < 3)
             {
@@ -122,6 +152,32 @@ namespace FileAnalysisTool
                 return;
             }
             command(commandParts[1], commandParts[2]);
+        }
+
+        static void ExecuteStringExtraction(string[] commandParts)
+        {
+            if (commandParts.Length >= 2)
+            {
+                int minLength = commandParts.Length >= 3 ? int.Parse(commandParts[2]) : 4;
+                ExtractStrings(commandParts[1], minLength);
+            }
+            else
+            {
+                Console.WriteLine("Error: No file path provided for string extraction.");
+            }
+        }
+
+        static void ExecuteContextLineComparison(string[] commandParts)
+        {
+            if (commandParts.Length >= 3)
+            {
+                int contextLines = commandParts.Length >= 4 ? int.Parse(commandParts[3]) : 2;
+                CompareLinesWithContext(commandParts[1], commandParts[2], contextLines);
+            }
+            else
+            {
+                Console.WriteLine("Error: Two file paths and context lines count are required.");
+            }
         }
 
         static void CalculateEntropy(string filePath)
@@ -687,7 +743,35 @@ namespace FileAnalysisTool
             Console.WriteLine("|");
         }
 
+        static void StringSearch(string filepath, string targetString)
+        {
+            foreach (string line in File.ReadLines(filepath))
+            {
+                if (line.Contains(targetString))
+                {
+                    Console.WriteLine($"'{targetString}'found on line:");
+                    Console.WriteLine(line);
+                    return;
+                }
+            }
+        }
+
+        static void StringSearches(string filepath, string targetString)
+        {
+            int numInstances = 0;
+            foreach (string line in File.ReadLines(filepath))
+            {
+                if (line.Contains(targetString))
+                {
+                    Console.WriteLine($"'{targetString}'found on line:");
+                    Console.WriteLine(line);
+                    numInstances++;
+                }
+            }
+
+            Console.WriteLine($"Word was found {numInstances} times.");
+            return;
+        }
+
     }
-
-
 }
