@@ -7,6 +7,8 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using UglyToad.PdfPig;
+using System.Security.Cryptography;
+
 
 namespace FileAnalysisTool
 {
@@ -14,7 +16,7 @@ namespace FileAnalysisTool
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("  ___ _ _         _             _                       \r\n | __(_) |___    /_\\  _ _  __ _| |__ _ _  _ ___ ___ _ _ \r\n | _|| | / -_)  / _ \\| ' \\/ _ | / _ | || (_-</ -_) '_|\r\n |_| |_|_\\___| /_/ \\_\\_||_\\__,_|_\\__,_|\\_, /__/\\___|_|  \r\n                                       |__/             ");
+            Console.WriteLine("  ___ _ _     ___            _     _   \r\n | __(_) |___/ __| __ _ _  _(_)_ _| |_ \r\n | _|| | / -_)__ \\/ _` | || | | ' \\  _|\r\n |_| |_|_\\___|___/\\__, |\\_,_|_|_||_\\__|\r\n                     |_|               ");
             Console.WriteLine("\nType 'help' for a list of commands.");
 
             while (true)
@@ -44,8 +46,10 @@ namespace FileAnalysisTool
                         ExecuteCommandWithTwoVariables(commandParts, CompareBytes);
                         break;
                     case "comparetext":
-                    case "comparelines":
                         ExecuteCommandWithTwoVariables(commandParts, CompareText);
+                        break;
+                    case "comparelines":
+                        ExecuteCommandWithTwoVariables(commandParts, CompareLines);
                         break;
                     case "comparelinescontext":
                         ExecuteContextLineComparison(commandParts);
@@ -58,6 +62,9 @@ namespace FileAnalysisTool
                         break;
                     case "searchstringnobreak":
                         ExecuteCommandWithTwoVariables(commandParts, StringSearches);
+                        break;
+                    case "hashcalc":
+                        ExecuteCommandWithFilePath(commandParts, HashCalc);
                         break;
                     case "exit":
                         Console.WriteLine("Exiting...");
@@ -82,6 +89,8 @@ namespace FileAnalysisTool
             Console.WriteLine("  comparebyteshexdump <filePath1> <filePath2> - Compare two files byte-by-byte in hex dump format.");
             Console.WriteLine("  searchstring <filePath> <searchString> - Search for a specific string in the specified file.");
             Console.WriteLine("  searchstringnobreak <filePath> <searchString> - Search for a specific string in the specified file without breaking.");
+            Console.WriteLine("  hashcalc <filePath> [algorithms]       - Calculate the hash value of the specified file using one or more algorithms (e.g., MD5, SHA-1, SHA-256, etc.).");
+            Console.WriteLine("  hashcalc <filePath>                    - Calculate the hash value of the specified file using MD5, SHA-1, SHA-256, and SHA-512.");
             Console.WriteLine("  exit                                   - Exit the application.");
         }
 
@@ -771,6 +780,78 @@ namespace FileAnalysisTool
 
             Console.WriteLine($"Word was found {numInstances} times.");
             return;
+        }
+
+        static void HashCalc(string filepath)
+        {
+            using (FileStream stream = File.OpenRead(filepath))
+            {
+                // Create hash algorithm instances
+                HashAlgorithm md5 = MD5.Create();
+                HashAlgorithm sha1 = SHA1.Create();
+                HashAlgorithm sha256 = SHA256.Create();
+                HashAlgorithm sha512 = SHA512.Create();
+                HashAlgorithm sha384 = SHA384.Create();
+
+                // Compute hashes
+                byte[] md5HashBytes = md5.ComputeHash(stream);
+                stream.Position = 0; 
+                byte[] sha1HashBytes = sha1.ComputeHash(stream);
+                stream.Position = 0;
+                byte[] sha256HashBytes = sha256.ComputeHash(stream);
+                stream.Position = 0;
+                byte[] sha512HashBytes = sha512.ComputeHash(stream);
+                stream.Position = 0;
+                byte[] sha384HashBytes = sha384.ComputeHash(stream);
+
+                Console.WriteLine($"MD5: {BitConverter.ToString(md5HashBytes).Replace("-", "").ToLowerInvariant()}");
+                Console.WriteLine($"SHA-1: {BitConverter.ToString(sha1HashBytes).Replace("-", "").ToLowerInvariant()}");
+                Console.WriteLine($"SHA-256: {BitConverter.ToString(sha256HashBytes).Replace("-", "").ToLowerInvariant()}");
+                Console.WriteLine($"SHA-512: {BitConverter.ToString(sha512HashBytes).Replace("-", "").ToLowerInvariant()}");
+                Console.WriteLine($"SHA-384: {BitConverter.ToString(sha384HashBytes).Replace("-", "").ToLowerInvariant()}");
+
+            }
+
+            uint crc32Checksum = CalculateCRC32(filepath);
+            Console.WriteLine($"CRC32: {crc32Checksum:X8}");
+
+            return;
+        }
+
+        public static uint CalculateCRC32(string filePath)
+        {
+            const uint Polynomial = 0xEDB88320;
+            uint[] table = new uint[256];
+            uint crc = 0xFFFFFFFF;
+
+            for (uint i = 0; i < 256; i++)
+            {
+                uint crcTemp = i;
+                for (int j = 8; j > 0; j--)
+                {
+                    if ((crcTemp & 1) == 1)
+                    {
+                        crcTemp = (crcTemp >> 1) ^ Polynomial;
+                    }
+                    else
+                    {
+                        crcTemp >>= 1;
+                    }
+                }
+                table[i] = crcTemp;
+            }
+
+            using (FileStream fs = File.OpenRead(filePath))
+            {
+                int b;
+                while ((b = fs.ReadByte()) != -1)
+                {
+                    byte byteVal = (byte)b;
+                    crc = (crc >> 8) ^ table[(crc & 0xFF) ^ byteVal];
+                }
+            }
+
+            return ~crc; 
         }
 
     }
